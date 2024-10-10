@@ -1,11 +1,10 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import {
   getServerSession,
-  type DefaultSession,
   type NextAuthOptions,
 } from "next-auth";
 import { type Adapter } from "next-auth/adapters";
-import CredentialsProvider from "next-auth/providers/credentials";
+import Credentials from "next-auth/providers/credentials";
 import { db } from "~/server/db";
 import bcrypt from "bcrypt";
 
@@ -15,22 +14,18 @@ import bcrypt from "bcrypt";
  *
  * @see https://next-auth.js.org/getting-started/typescript#module-augmentation
  */
-declare module "next-auth" {
-  interface Session extends DefaultSession {
-    user: {
-      id: number;
-      password?: string;
-      role: string;
-    } & DefaultSession["user"];
-  }
+// declare module "next-auth" {
+//   interface Session extends DefaultSession {
+//     user: {
+//       id: number;
+//       role: string;
+//     } & DefaultSession["user"];
+//   }
 
-  interface User {
-    id: number;
-    email: string;
-    role: string;
-    employeeId: number;
-  }
-}
+//   interface User {
+//     role: string;
+//   }
+// }
 
 /**
  * Options for NextAuth.js used to configure adapters, providers, callbacks, etc.
@@ -38,75 +33,68 @@ declare module "next-auth" {
  * @see https://next-auth.js.org/configuration/options
  */
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(db) as Adapter,
-  providers: [
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        email: {
-          label: "Email",
-          type: "text",
-          placeholder: "Enter your email",
-        },
-        password: {
-          label: "Password",
-          type: "password",
-          placeholder: "Enter your password",
-        },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          throw new Error("Missing credentials");
-        }
-
-        // Find the user in your database (using Prisma here)
-        const user = await db.user.findUnique({
-          where: { email: credentials.email },
-        });
-
-        if (!user) {
-          throw new Error("No user found");
-        }
-
-        // Verify the password with bcrypt
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password,
-        );
-        if (!isPasswordValid) {
-          throw new Error("Invalid password");
-        }
-
-         return {
-           id: user.id,
-           email: user.email,
-           employeeId: user.employeeId,
-         };;
-      },
-    }),
-  ],
-  pages: {
-    signIn: "/login",
-  },
+  debug: true,
   session: {
     strategy: "jwt",
   },
   callbacks: {
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.sub as number; // Type-cast to match the user ID type
-        session.user.role = token.role;
-      }
-      return session;
+    session: ({ session, token }) => {
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: token.id,
+          role: token.role,
+          name: token.name,
+        },
+      };
     },
-    async jwt({ token, user }) {
+    jwt: ({ token, user }) => {
       if (user) {
-        token.role = user.role;
+        const u = user as unknown as any;
+        return {
+          ...token,
+          id: u.id,
+          role: u.role,
+          name: u.name,
+        };
       }
       return token;
     },
   },
+  adapter: PrismaAdapter(db) as Adapter,
+  providers: [
+    Credentials({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "text" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const user = await db.user.findUnique({
+          where: { email: credentials?.email },
+        });
+
+        if (!user) {
+          console.log("User not found");
+          return null;
+        }
+
+        const isPasswordValid = await bcrypt.compare(
+          credentials?.password ?? "",
+          user.password,
+        );
+
+        if (!isPasswordValid) {
+          console.log("Invalid password");
+          return null;
+        }
+
+        console.log("User authorized:", user);
+        return user;
+      },
+    }),
+  ],
 };
 
 /**
