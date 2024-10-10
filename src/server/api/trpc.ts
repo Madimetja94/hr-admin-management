@@ -28,7 +28,7 @@ import { db } from "~/server/db";
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const session = await getServerAuthSession();
-
+console.log('SESSION:', session)
   return {
     db,
     session,
@@ -121,6 +121,7 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
   .use(({ ctx, next }) => {
+    console.log(ctx.session.user)
     if (!ctx.session || !ctx.session.user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
@@ -131,3 +132,14 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+  // Extend the protectedProcedure to handle role-based access
+export const roleProtectedProcedure = (requiredRoles: string[]) =>
+  protectedProcedure.use(({ ctx, next }) => {
+    const userRole = ctx.session.user.role;
+    if (!requiredRoles.includes(userRole)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions" });
+    }
+    return next();
+  });
+

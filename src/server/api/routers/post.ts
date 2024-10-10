@@ -1,41 +1,82 @@
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 
 import {
   createTRPCRouter,
-  protectedProcedure,
-  publicProcedure,
+  roleProtectedProcedure,
 } from "~/server/api/trpc";
 
-export const postRouter = createTRPCRouter({
-  hello: publicProcedure
-    .input(z.object({ text: z.string() }))
-    .query(({ input }) => {
-      return {
-        greeting: `Hello ${input.text}`,
-      };
-    }),
-
-  create: protectedProcedure
-    .input(z.object({ name: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
-      return ctx.db.post.create({
-        data: {
-          name: input.name,
-          createdBy: { connect: { id: ctx.session.user.id } },
-        },
-      });
-    }),
-
-  getLatest: protectedProcedure.query(async ({ ctx }) => {
-    const post = await ctx.db.post.findFirst({
-      orderBy: { createdAt: "desc" },
-      where: { createdBy: { id: ctx.session.user.id } },
-    });
-
-    return post ?? null;
-  }),
-
-  getSecretMessage: protectedProcedure.query(() => {
-    return "you can now see this secret message!";
-  }),
+export const employeeRouter = createTRPCRouter({
+  simpleList: roleProtectedProcedure(['user']).query(
+    async ({ ctx }) => {
+      return "Test Route Works!";
+    },
+  ),
 });
+
+// export const employeeRouter = createTRPCRouter({
+//   list: roleProtectedProcedure(["admin", "manager"]).query(
+//     async ({ ctx }) => {
+//       if (ctx.session.user.role === "admin") {
+//         return ctx.db.employee.findMany();
+//       } else {
+//         return ctx.db.employee.findMany({
+//           where: { managerId: ctx.session.user.id },
+//         });
+//       }
+//     },
+//   ),
+
+//   create: roleProtectedProcedure(["admin"]).mutation(
+//     async ({ ctx, input }) => {
+//       const newEmployee = await ctx.db.employee.create({
+//         data: { ...input, defaultPassword: bcrypt.hashSync("Password123#") },
+//       });
+//       return newEmployee;
+//     },
+//   ),
+
+//   update: roleProtectedProcedure(["admin"]).mutation(
+//     async ({ ctx, input }) => {
+//       const updatedEmployee = await ctx.db.employee.update({
+//         where: { id: input.id },
+//         data: { ...input },
+//       });
+//       return updatedEmployee;
+//     },
+//   ),
+// });
+
+// export const departmentRouter = createTRPCRouter({
+//   list: roleProtectedProcedure(["admin", "manager"]).query(
+//     async ({ ctx }) => {
+//       if (ctx.session.user.role === "admin") {
+//         return ctx.db.department.findMany();
+//        }// else {
+//       //   return ctx.db.department.findMany({
+//       //     where: { managerId: ctx.session.user.id },
+//       //   });
+//       // }
+//     },
+//   ),
+
+//   create: roleProtectedProcedure(["admin"]).mutation(
+//     async ({ ctx, input }) => {
+//       const newDepartment = await ctx.db.department.create({
+//         data: { ...input },
+//       });
+//       return newDepartment;
+//     },
+//   ),
+
+//   update: roleProtectedProcedure(["admin"]).mutation(
+//     async ({ ctx, input }) => {
+//       const updatedDepartment = await ctx.db.department.update({
+//         where: { id: input.id },
+//         data: { ...input },
+//       });
+//       return updatedDepartment;
+//     },
+//   ),
+// });
+
