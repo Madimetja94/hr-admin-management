@@ -121,19 +121,16 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
   .use(({ ctx, next }) => {
-    console.log(ctx.session.user)
-    if (!ctx.session || !ctx.session.user) {
+    if (!ctx.session?.user) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
     return next({
       ctx: {
-        // infers the `session` as non-nullable
         session: { ...ctx.session, user: ctx.session.user },
       },
     });
   });
 
-  // Extend the protectedProcedure to handle role-based access
 export const roleProtectedProcedure = (requiredRoles: string[]) =>
   protectedProcedure.use(({ ctx, next }) => {
     const userRole = ctx.session.user.role;
