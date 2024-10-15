@@ -6,13 +6,13 @@ import {
   roleProtectedProcedure,
 } from "~/server/api/trpc";
 
-export const employeeRouter = createTRPCRouter({
-  simpleList: roleProtectedProcedure(['user']).query(
-    async ({ ctx }) => {
-      return "Test Route Works!";
-    },
-  ),
-});
+// export const employeeRouter = createTRPCRouter({
+//   simpleList: roleProtectedProcedure(['user']).query(
+//     async ({ ctx }) => {
+//       return "Test Route Works!";
+//     },
+//   ),
+// });
 
 // export const employeeRouter = createTRPCRouter({
 //   list: roleProtectedProcedure(["admin", "manager"]).query(
